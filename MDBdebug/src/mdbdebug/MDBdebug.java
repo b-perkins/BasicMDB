@@ -3,14 +3,17 @@ import com.microchip.mdbcs.Debugger;
 import com.microchip.mdbcs.Finder.ToolType;
 import com.microchip.mdbcs.MException;
 import com.microchip.mplab.crownkingx.xPIC;
+import com.microchip.mplab.logger.MPLABLogger;
 import com.microchip.mplab.mdbcore.assemblies.Assembly;
 import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
+import java.util.logging.Level;
 import moatbclient.Main;
 
 public class MDBdebug {
+    boolean XLOG = true; // used for setting Xlogging
     boolean MOATB = true; // for testing purposes, false = local, true = using moatb
     String sHost = "192.168.1.2"; // IP of moatb
     String sMB = "MTI006"; // hardcoding to mti6 since that is what spawned this test
@@ -31,6 +34,13 @@ public class MDBdebug {
         if (args.length != 1)
             System.out.println("Incorrect usage: arg1 => run count");
 
+        if (m.XLOG){
+            String XLogFileName = "./MPLABXLog_Finest.xml";
+            System.out.println("Enabling MPLAB X Logging, Log file located at: "+ XLogFileName);
+            MPLABLogger.setLogFileName(XLogFileName);
+            MPLABLogger.setLogLevel(Level.FINEST);
+        }
+        
         arbCount = Integer.parseInt(args[0], 10);
         for (int temp = 1; temp <= arbCount; temp++){
             System.out.println("\nRunning cycle "+temp+" of "+arbCount+" and there have been "+m.failCount+" failures thus far");
@@ -149,12 +159,7 @@ public class MDBdebug {
             startTime = System.currentTimeMillis();
             secondsCounter = 0;
             while(d.isRunning()){
-                if (System.currentTimeMillis() - startTime >= 1000){
-                    secondsCount++; 
-                    secondsCounter = System.currentTimeMillis(); //reset timer
-                    System.out.print(secondsCounter+" Sec ");
-                }
-                if (secondsCount >= 3){ //lets give it 3 seconds to run
+                if (System.currentTimeMillis() - startTime >= 3000){
                     System.out.println("\nRan for 3 sec, halting & exiting");
                     d.halt();
                 }
