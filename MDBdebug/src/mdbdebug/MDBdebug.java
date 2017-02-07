@@ -44,7 +44,7 @@ public class MDBdebug {
             System.out.println(m.resultingTimesMAX+"  "+m.resultingTimesNORM+"  "+m.resultingTimesMIN);
         }
         else {
-            System.out.println("Results for ICD3 prog speed:");  
+            System.out.println("Results for REALICE prog speed:");  
             System.out.println(m.resultingTimesCurrentGen);
         }
         System.exit(0);
