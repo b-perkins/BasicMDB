@@ -24,9 +24,7 @@ public class MDBdebug {
     int breakpointOffset = 2;//amount of expected skid for breakpoints. I believe 16bit is 4
     long startTime, secondsCounter, BPresult = 0;
     static String device1 = "dsPIC33EP64MC506"; // TODO update to a valid device and elf
-    static String device1DEBUGimage = "./hexandelf/33EP64MC506.X.debug.elf";
     static String device2 = "dsPIC33EV128GM006";
-    static String device2DEBUGimage = "./hexandelf/33EV128GM006.X.debug.elf";
     static String device1breakpointName = "breakpoint1";
      
     public static void main(String[] args) throws InterruptedException, MException {
@@ -52,7 +50,7 @@ public class MDBdebug {
             if (m.MOATB){
                 m.connectResult = m.connectDeviceMOATB(device1);
                 if (m.connectResult == 0){
-                    m.runDebugger(device1, device1DEBUGimage);
+                    m.runDebugger(device1);
                     m.disconnectDeviceMOATB(device1); // just disconnect. TODO handle more gracefully
                 }
             }
@@ -71,7 +69,7 @@ public class MDBdebug {
             if (m.MOATB){
                 m.connectResult = m.connectDeviceMOATB(device2);
                 if (m.connectResult == 0){
-                    m.runDebugger(device2, device2DEBUGimage);
+                    m.runDebugger(device2);
                     m.disconnectDeviceMOATB(device2);
                 }
             }
@@ -138,45 +136,18 @@ public class MDBdebug {
         }
     }
         
-    private void runDebugger(String device, String image) throws InterruptedException {
+    private void runDebugger(String device) throws InterruptedException {
         try {
             System.out.println("\n---------------Connecting as DEBUGGER----------------");
             Debugger d = new Debugger(device, ToolType.ICD3, Debugger.SessionType.DEBUGGER);
-            //Assembly assembly = d.getToolAssembly();
-            //assembly.GetToolProperties().setProperty("programoptions.pgmspeed", "Max");
-            // AssemblyFactory  assemblyFactory = Lookup.getDefault().lookup(AssemblyFactory.class);
-            // Assembly assembly = assemblyFactory.Create(device);
-            //System.out.println("Using tool settings: "+d.getToolProperties());
-            BPresult = 0;
+            
             d.connect();
             d.erase();
-            d.loadFile(image);
-            d.program();
-            System.out.println("Running");
-            // d.setBP(0x3CB0);
-            d.run();
-
-            startTime = System.currentTimeMillis();
-            secondsCounter = 0;
-            while(d.isRunning()){
-                if (System.currentTimeMillis() - startTime >= 3000){
-                    System.out.println("\nRan for 3 sec, halting & exiting");
-                    d.halt();
-                }
-            }
-
-            BPresult = d.getPC();
-            System.out.println("\nHALTED @ line: "+d.getFileAndLineFromAddress(BPresult)+" or 0x"+Integer.toHexString((int)BPresult)+" or decimal: "+BPresult);
-            if (BPresult > 0)
-                System.out.println("Successfully ran and halted --- PASS"); 
-            else{
-                System.out.println("Either did not program or did not run -- FAIL"); 
-                failCount++;
-            }
+            d.BlankCheck();
             d.disconnect();
             d.destroy();
             
-            System.out.println("\nDONE   - Programmer run count: "+(++progCount));
+            System.out.println("\nDONE   - Erase/BC count: "+(++progCount));
         } catch (MException ex) {
             System.err.println("Oops we died : " + ex.getMessage());
             failCount++;
