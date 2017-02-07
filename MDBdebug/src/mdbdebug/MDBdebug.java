@@ -20,9 +20,10 @@ public class MDBdebug {
     int progCount, debCount, secondsCount, failCount, connectResult = 0;
     int breakpointOffset = 2;//amount of expected skid for breakpoints. I believe 16bit is 4
     long startTime, secondsCounter, BPresult = 0;
-    static String device1 = "PIC16F18313"; // TODO update to a vali device and elf
-    static String device1PROGimage = "./hexandelf/16F1828-blnkRB7-pin10.X.production.hex";
-    static String device1DEBUGimage = "./hexandelf/16F18313-donor.X.debug.elf";
+    static String device1 = "dsPIC33EP64MC506"; // TODO update to a valid device and elf
+    static String device1DEBUGimage = "./hexandelf/33EP64MC506.X.debug.elf";
+    static String device2 = "dsPIC33EV128GM006";
+    static String device2DEBUGimage = "./hexandelf/33EV128GM006.X.debug.elf";
     static String device1breakpointName = "breakpoint1";
      
     public static void main(String[] args) throws InterruptedException, MException {
@@ -33,23 +34,29 @@ public class MDBdebug {
         arbCount = Integer.parseInt(args[0], 10);
         for (int temp = 1; temp <= arbCount; temp++){
             System.out.println("\nRunning cycle "+temp+" of "+arbCount+" and there have been "+m.failCount+" failures thus far");
-            if (m.MOATB)
-                m.connectResult = m.connectDeviceMOATB(device1);
             
-            switch (m.connectResult){
-                case 0: //success
-                    System.out.println("Success");
+            // test device 1
+            if (m.MOATB){
+                m.connectResult = m.connectDeviceMOATB(device1);
+                if (m.connectResult == 0){
+                    System.out.println("Connection Success");
                     m.runDebugger(device1, device1DEBUGimage);
-                    break;
-                case 1: //General failure... or board is busy, this is tricky.
-                    System.out.println("General failure...");
-                    break;
-                case 2: //Not found on any MOATB
-                    System.out.println("Not Found on any MOATB");
-                    break;
-                case 3://Found on different MOATB
-                    System.out.println("Found On different MOATB.");
-                    break;
+                    m.disconnectDeviceMOATB(device1); // just disconnect. TODO handle more gracefully
+                } else {
+                    System.out.println("Connection Failed");
+                }
+            }
+            
+            // test device 2
+            if (m.MOATB){
+                m.connectResult = m.connectDeviceMOATB(device2);
+                if (m.connectResult == 0){
+                    System.out.println("Connection Success");
+                    m.runDebugger(device2, device2DEBUGimage);
+                    m.disconnectDeviceMOATB(device1);
+                } else {
+                    System.out.println("Connection Failed");
+                }
             }
         }
 
@@ -88,6 +95,29 @@ public class MDBdebug {
         } catch (Throwable e1) {
             e1.printStackTrace();
             return 1;
+        }
+    }
+    
+    private void disconnectDeviceMOATB(String sDevice){
+        try {
+            String arg_string = "/host "+this.sHost+" /disconnect_device "+sDevice+" "+this.sMB+":"+this.sPort;
+            String[] args = arg_string.split(" ");
+            //pipe output of client.main to a variable to parse
+            ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
+            System.setOut(new PrintStream(byteStream, true));
+            Main.main(args);           
+            String capturedText = byteStream.toString();                        
+            // Resets System.out back to the way it was.
+            System.setOut(
+            new PrintStream(
+            new BufferedOutputStream(
+            new FileOutputStream(
+            java.io.FileDescriptor.out), 128), true));
+
+            System.out.println(arg_string);
+            System.out.println(capturedText);
+        } catch (Throwable e1) {
+            e1.printStackTrace();
         }
     }
         
