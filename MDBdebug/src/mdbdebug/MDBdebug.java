@@ -2,65 +2,46 @@ package mdbdebug;
 import com.microchip.mdbcs.Debugger;
 import com.microchip.mdbcs.Finder.ToolType;
 import com.microchip.mdbcs.MException;
-import com.microchip.mplab.mdbcore.assemblies.Assembly;
 
 public class MDBdebug {
     static int arbCount = 0;
-    int progCount, debCount, secondsCount, failCount = 0;
-    int breakpointOffset = 2;//amount of expected skid for breakpoints. I believe 16bit is 4
-    long startTime, recordedProgrammingTime,resultingTimesMAX, resultingTimesNORM, resultingTimesMIN, resultingTimesCurrentGen = 0;
-    static String tool = "REALICE";
-    static String device1 = "PIC18F8722";
-    static String device1Hex = "hexandelf\\PIC18F8722.hex";
-    static String device2 = "PIC24FJ128GA010";
-    static String device2Hex = "hexandelf\\PIC24FJ128GA010.hex";
-    static String device3 = "PIC32MZ2048EFH100";
-    static String device3Hex = "hexandelf\\PIC32MZ2048EFH100.hex";
-    static String device4 = "PIC16F1709";
-    static String device4Hex = "hexandelf\\PIC16F1709.hex";
-    static String device5 = "PIC24FJ256GA110";
-    static String device5Hex = "hexandelf\\PIC24FJ256GA110.hex";
-    static String device6 = "PIC16F1509";
-    static String device6Hex = "hexandelf\\PIC16F1509.hex";
-     
+    int progCount, debCount, secondsCount, failCount, usingSWBP = 0;
+    int breakpointOffset = 0;//amount of expected skid. I belive 16bit is 4
+    long seconds, BPexpected, BPresult = 0;
+    long BP_at_PC = 0x7F6;
+    static String device = "PIC16F1828";
+    static String PROGimage = "./hexandelf/16F1828-blnkRB7-pin10.X.production.hex";
+    static String DEBUGimage = "./hexandelf/16F1828-blnkRB7-pin10.X.debug.elf";
+    static String breakpointName = "breakpoint1";
+    
     public static void main(String[] args) throws InterruptedException {
         MDBdebug m = new MDBdebug();
         if (args.length != 1)
             System.out.println("Incorrect usage: arg1 => run count");
-
         arbCount = Integer.parseInt(args[0], 10);
-        if (tool.equals("ICD4")){
-            m.resultingTimesMIN = m.runProgrammerICD4MIN(device6, device6Hex); // only for ICD4 (sets programming speed)
-            m.resultingTimesNORM = m.runProgrammerICD4NORM(device6, device6Hex); // only for ICD4 (sets programming speed)
-            m.resultingTimesMAX = m.runProgrammerICD4MAX(device6, device6Hex); // only for ICD4 (sets programming speed)
+        for (int temp = 1; temp <= arbCount; temp++){
+            System.out.println("\nRunning cycle "+temp+" of "+arbCount+" and there have been "+m.failCount+" failures thus far");
+            if (temp % 2 == 0) //just an easy way to alternate btw prog/debug
+                m.runProgrammer();
+            else
+                m.runDebugger();
         }
-        else
-            m.resultingTimesCurrentGen = m.runProgrammer(device6, device6Hex); // for everything but ICD4
-
         System.out.println(m.failCount+" Failures total");
-        if (tool.equals("ICD4")){
-            System.out.println("Results for prog speed in ms:");
-            System.out.println("MAX    NORM   MIN");
-            System.out.println(m.resultingTimesMAX+"  "+m.resultingTimesNORM+"  "+m.resultingTimesMIN);
-        }
-        else {
-            System.out.println("Results for REALICE prog speed:");  
-            System.out.println(m.resultingTimesCurrentGen);
-        }
         System.exit(0);
     }
+    
+    private void runProgrammer() throws InterruptedException {
+        try {
+            System.out.println("\n---------------Connecting as PROGRAMMER----------------");
+            Debugger p = new Debugger(device, ToolType.ICD3, Debugger.SessionType.PROGRAMMER);
+            p.connect();
+            p.erase();
+            p.program(PROGimage);
 
-    private long runProgrammer(String device, String image) throws InterruptedException {
-        try {
-            System.out.println("\n---------------Connecting as PROGRAMMER----------------");
-            Debugger p = new Debugger(device, ToolType.REALICE, Debugger.SessionType.PROGRAMMER); // hardcoded to ICD3
-            p.connect();
-            p.erase();
-            p.loadFile(image);
-            startTime= System.currentTimeMillis(); //reset timer
-            p.program();
-            recordedProgrammingTime = System.currentTimeMillis() - startTime;
-            System.out.println("\nProgramming operation took: "+recordedProgrammingTime+" ms"); // TODO convert 1000 to float before division
+            System.out.println("Running for a few seconds. LED should be blinking");
+            seconds = System.currentTimeMillis(); //reset timer
+            while(System.currentTimeMillis() - seconds <= 2200){} //lets give it ~2 sec
+
             p.disconnect();
             p.destroy();
             System.out.println("\nDONE   - Programmer run count: "+(++progCount));
@@ -68,81 +49,54 @@ public class MDBdebug {
             System.err.println("Oops we died : " + ex.getMessage());
             failCount++;
         }
-        return recordedProgrammingTime;
     }
-    
-    private long runProgrammerICD4MAX(String device, String image) throws InterruptedException {
+
+    private void runDebugger() throws InterruptedException{
         try {
-            System.out.println("\n---------------Connecting as PROGRAMMER----------------");
-            recordedProgrammingTime = 0;
-            Debugger p = new Debugger(device, ToolType.ICD4, Debugger.SessionType.PROGRAMMER); // hardcoded to ICD4
-            Assembly assembly = p.getToolAssembly();
-            assembly.GetToolProperties().setProperty("programoptions.pgmspeed", "Max");
-            System.out.println("Using tool settings: "+p.getToolProperties());
-            p.connect();
-            p.erase();
-            p.loadFile(image);
-            startTime= System.currentTimeMillis(); //reset timer
-            p.program();
-            recordedProgrammingTime = System.currentTimeMillis() - startTime;
-            System.out.println("\nProgramming operation took: "+recordedProgrammingTime+" ms");
-            p.disconnect();
-            p.destroy();
-            System.out.println("\nDONE   - Programmer run count: "+(++progCount));
+            System.out.println("\n---------------Connecting as DEBUGGER----------------");
+            Debugger d = new Debugger(device, ToolType.ICD3, Debugger.SessionType.DEBUGGER);
+            d.connect();
+            d.erase();
+            d.program(DEBUGimage);//MUST BE AN ELF FILE
+           // BPexpected = d.getSymbolAddress(breakpointName);//doesnt seems to work for some 8-bit
+            BPexpected = BP_at_PC;
+            System.out.println("Setting breakpoint, expected location: 0x"+Integer.toHexString((int)BPexpected)+" or decimal: "+BPexpected);
+            d.EnableSWBreakpoints();
+            d.setSWBP(BP_at_PC);//there are 2 version of setBP, one for symbols (string), one for address (long)
+            System.out.println("Running to breakpoint. LED should be lit");
+            d.run();
+
+            seconds = System.currentTimeMillis(); //reset timer
+            secondsCount = 0;
+            while(d.isRunning()){
+                if (System.currentTimeMillis() - seconds >= 1000){
+                    secondsCount++; 
+                    seconds = System.currentTimeMillis(); //reset timer
+                    System.out.print(secondsCount+" Sec ");
+                }
+                if (secondsCount >= 5){ //lets give it 5 seconds to hit the breakpoint
+                    System.out.println("\nFailed to halt via BP in 5 sec, halting manually");
+                    d.halt();
+                }
+            }
+
+            BPresult = d.getPC();
+            System.out.println("\nHALTED @ line: "+d.getFileAndLineFromAddress(BPresult)+" or 0x"+Integer.toHexString((int)BPresult)+" or decimal: "+BPresult);
+            if (BPresult == (BPexpected + breakpointOffset))
+                System.out.println("Halted at expected location --------- PASS");
+            else{
+                System.out.println("Failed to halt at expected location --------- FAIL");
+                System.out.println("Is the skid-offset set correctly? dsPIC - 4, 32MZ - 1, cooper - 1, SWBP - 0");
+                failCount++;
+            }
+
+           // d.DisableSWBreakpoints();
+            d.disconnect();
+            d.destroy();
+            System.out.println("DONE   - Debug run count: "+(++debCount));
         } catch (MException ex) {
             System.err.println("Oops we died : " + ex.getMessage());
             failCount++;
         }
-        return recordedProgrammingTime;
-    }
-    
-        private long runProgrammerICD4NORM(String device, String image) throws InterruptedException {
-        try {
-            System.out.println("\n---------------Connecting as PROGRAMMER----------------");
-            recordedProgrammingTime = 0;
-            Debugger p = new Debugger(device, ToolType.ICD4, Debugger.SessionType.PROGRAMMER); // hardcoded to ICD4
-            Assembly assembly = p.getToolAssembly();
-            assembly.GetToolProperties().setProperty("programoptions.pgmspeed", "Med"); // Med = "normal"
-            System.out.println("Using tool settings: "+p.getToolProperties());
-            p.connect();
-            p.erase();
-            p.loadFile(image);
-            startTime= System.currentTimeMillis(); //reset timer
-            p.program();
-            recordedProgrammingTime = System.currentTimeMillis() - startTime;
-            System.out.println("\nProgramming operation took: "+recordedProgrammingTime+" ms");
-            p.disconnect();
-            p.destroy();
-            System.out.println("\nDONE   - Programmer run count: "+(++progCount));
-        } catch (MException ex) {
-            System.err.println("Oops we died : " + ex.getMessage());
-            failCount++;
-        }
-        return recordedProgrammingTime;
-    }
-        
-        private long runProgrammerICD4MIN(String device, String image) throws InterruptedException {
-        try {
-            System.out.println("\n---------------Connecting as PROGRAMMER----------------");
-            recordedProgrammingTime = 0;
-            Debugger p = new Debugger(device, ToolType.ICD4, Debugger.SessionType.PROGRAMMER); // hardcoded to ICD4
-            Assembly assembly = p.getToolAssembly();
-            assembly.GetToolProperties().setProperty("programoptions.pgmspeed", "Min");
-            System.out.println("Using tool settings: "+p.getToolProperties());
-            p.connect();
-            p.erase();
-            p.loadFile(image);
-            startTime= System.currentTimeMillis(); //reset timer
-            p.program();
-            recordedProgrammingTime = System.currentTimeMillis() - startTime;
-            System.out.println("\nProgramming operation took: "+recordedProgrammingTime+" ms");
-            p.disconnect();
-            p.destroy();
-            System.out.println("\nDONE   - Programmer run count: "+(++progCount));
-        } catch (MException ex) {
-            System.err.println("Oops we died : " + ex.getMessage());
-            failCount++;
-        }
-        return recordedProgrammingTime;
     }
 }
