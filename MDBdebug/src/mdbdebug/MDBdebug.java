@@ -35,27 +35,34 @@ public class MDBdebug {
         for (int temp = 1; temp <= arbCount; temp++){
             System.out.println("\nRunning cycle "+temp+" of "+arbCount+" and there have been "+m.failCount+" failures thus far");
             
+                if (m.failCount != 0) // bail if there are any errors
+                break;
+            
             // test device 1
             if (m.MOATB){
                 m.connectResult = m.connectDeviceMOATB(device1);
                 if (m.connectResult == 0){
-                    System.out.println("Connection Success");
                     m.runDebugger(device1, device1DEBUGimage);
                     m.disconnectDeviceMOATB(device1); // just disconnect. TODO handle more gracefully
-                } else {
-                    System.out.println("Connection Failed");
                 }
+            }
+            
+            if (m.failCount != 0) // bail if there are any errors
+                break;
+            
+            try {
+                System.out.println("Waiting a few seconds for moatb server");
+                Thread.sleep(5000); // wait 5 seconds for moatb server
+            } catch(InterruptedException ex) {
+                Thread.currentThread().interrupt();
             }
             
             // test device 2
             if (m.MOATB){
                 m.connectResult = m.connectDeviceMOATB(device2);
                 if (m.connectResult == 0){
-                    System.out.println("Connection Success");
                     m.runDebugger(device2, device2DEBUGimage);
-                    m.disconnectDeviceMOATB(device1);
-                } else {
-                    System.out.println("Connection Failed");
+                    m.disconnectDeviceMOATB(device2);
                 }
             }
         }
