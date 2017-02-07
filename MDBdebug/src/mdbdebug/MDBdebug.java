@@ -40,11 +40,8 @@ public class MDBdebug {
         }
         
         arbCount = Integer.parseInt(args[0], 10);
-        for (int temp = 1; temp <= arbCount; temp++){
-            System.out.println("\nRunning cycle "+temp+" of "+arbCount+" and there have been "+m.failCount+" failures thus far");
-            
-                if (m.failCount != 0) // bail if there are any errors
-                break;
+        while(m.failCount == 0){ // just keep running until there are issues
+            System.out.println("\nRunning cycle "+(++m.debCount)+" and there have been "+m.failCount+" failures thus far");
             
             // test device 1
             if (m.MOATB){
@@ -143,7 +140,7 @@ public class MDBdebug {
             
             d.connect();
             d.erase();
-            d.BlankCheck();
+            d.BlankCheck(); // for now we dont care if the device is actually blank
             d.disconnect();
             d.destroy();
             
