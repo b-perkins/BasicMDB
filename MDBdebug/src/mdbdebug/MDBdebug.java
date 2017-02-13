@@ -57,11 +57,12 @@ public class MDBdebug {
                 }
             }
             d.halt();
-            System.out.println("\nRan for 3 sec, halting & exiting");
+            System.out.println("\nRan for 3 sec.. Now halting & setting breakpoint in tmr5.c line 154, PC @ 0x556");
             
             d.setBP(0x556);
             d.run();
 
+            System.out.println("Running until the BP is encountered");
             while (d.isRunning());
             BPresult = d.getPC();
             System.out.println("\nHALTED @ line: "+d.getFileAndLineFromAddress(BPresult)+" or 0x"+Integer.toHexString((int)BPresult)+" or decimal: "+BPresult);
