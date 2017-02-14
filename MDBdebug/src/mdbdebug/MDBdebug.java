@@ -40,7 +40,7 @@ public class MDBdebug {
     private void runDebugger(String device, String image) throws InterruptedException {
         try {
             System.out.println("\n---------------Connecting as DEBUGGER----------------");
-            Debugger d = new Debugger(device, ToolType.REALICE, Debugger.SessionType.DEBUGGER);
+            Debugger d = new Debugger(device, ToolType.ICD3, Debugger.SessionType.DEBUGGER);
             BPresult = 0;
             d.connect();
             d.erase();
@@ -61,7 +61,7 @@ public class MDBdebug {
             
             d.setBP(0x556);
             d.run();
-
+            d.sleep(3000); // small delay, otherwsie we go right past
             System.out.println("Running until the BP is encountered");
             while (d.isRunning());
             BPresult = d.getPC();
